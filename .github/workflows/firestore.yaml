@@ -81,7 +81,7 @@ jobs:
 
       - name: Debug Environment
         run: |
-          echo "Terraform version: ${{ terraform_version }}"
+          echo "Terraform version: ${{ env.TF_VERSION }}"
           echo "Working directory: $PWD"
           echo "Environment: ${{ github.event.inputs.environment }}"
           echo "Backend config file: environments/${{ github.event.inputs.environment }}/dev.backend"
