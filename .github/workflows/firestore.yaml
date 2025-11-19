@@ -46,7 +46,7 @@ env:
   PROJECT_ID: myproject-non-prod
   TF_VERSION: '1.9.0'
   # Using Workload Identity Fedreration Instead of Service Account keys
-  WORKLOAD_IDENTITY_PROVIDER: 'principal://iam.googleapis.com/projects/166457981312/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions'
+  WORKLOAD_IDENTITY_PROVIDER: 'projects/166457981312/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions'
   SERVICE_ACCOUNT: 'github-actions-deploy@myproject-non-prod.iam.gserviceaccount.com'
 
 jobs:
