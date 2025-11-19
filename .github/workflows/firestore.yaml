@@ -78,14 +78,14 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-     # - name: Debug Environment
-     #   run: |
-     #     echo "Terraform version: $(terraform version)"
-     #     echo "Working directory: $(pwd)"
-     #     echo "Environment: ${{ github.event.inputs.environment }}"
-     #     echo "Backend config file: environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.backend"
-     #     ls -la environments/${{ github.event.inputs.environment }}/
-     #     cat environments/${{ github.event.inputs.environment }}/{{ github.event.inputs.environment }}.backend
+      - name: Debug Environment
+        run: |
+          echo "Terraform version: $(terraform version)"
+          echo "Working directory: $(pwd)"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Backend config file: environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.backend"
+          ls -la environments/${{ github.event.inputs.environment }}/
+          cat environments/${{ github.event.inputs.environment }}/{{ github.event.inputs.environment }}.backend
 
       - name: Terraform Init
         run: |
