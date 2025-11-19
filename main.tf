@@ -1,8 +1,10 @@
-## NOTE: App Engine should be enabled manually OR via gcloud before using this Terraform.
-## Firestore requires App Engine — terraform cannot create it directly.
-##
-## gcloud services enable appengine.googleapis.com --project=<project-id>
-## gcloud app create --region=us-central --project=<project-id>
+/*  Note: APIs should be enabled manually or via gcloud before running this Terraform
+    gcloud services enable firestore.googleapis.com --project=myproject-non-prod
+    gcloud services enable appengine.googleapis.com --project=myproject-non-prod
+*/
+
+# Note: App Engine application should be created manually if it doesn’t exist
+# You can create it using: gcloud app create --region=us-central1 --project=myproject-non-prod
 
 # Create App Engine application (only if create_app_engine is true)
 resource "google_app_engine_application" "app" {
@@ -14,20 +16,23 @@ resource "google_app_engine_application" "app" {
 
 # Create Firestore database (only if create_firestore_database is true)
 resource "google_firestore_database" "database" {
-  count             = var.create_firestore_database ? 1 : 0
-  project           = var.project_id
-  name              = var.database_name
-  location_id       = var.database_location
-  type              = var.database_type
-  concurrency_mode  = var.concurrency_mode
-  point_in_time_recovery_enablement = var.point_in_time_recovery
-  delete_protection_state           = var.delete_protection_state
+  count       = var.create_firestore_database ? 1 : 0
+  project     = var.project_id
+  name        = var.database_name
+  location_id = var.database_location
+  type        = var.database_type
+  concurrency_mode             = var.concurrency_mode
+  app_engine_integration_mode  = var.app_engine_integration_mode
+  point_in_time_recovery_enablement = var.point_in_time_recovery_enablement
+  delete_protection_state      = var.delete_protection_state
 }
 
-# Create Firestore sample indexes (example)
-resource "google_firestore_index" "user_status_index" {
-  count = var.create_sample_indexes ? 1 : 0
+# Note: App Engine is required for Firestore, but we ensure it exists or is created via gcloud
+# Remove explicit dependency since we handle App Engine creation in the workflow
 
+# Create Firestore indexes (example)
+resource "google_firestore_index" "user_status_index" {
+  count      = var.create_sample_indexes ? 1 : 0
   project    = var.project_id
   database   = var.create_firestore_database ? google_firestore_database.database[0].name : var.database_name
   collection = "users"
@@ -43,11 +48,10 @@ resource "google_firestore_index" "user_status_index" {
   }
 }
 
-# Another sample index: order timestamp index
 resource "google_firestore_index" "order_timestamp_index" {
-  count     = var.create_sample_indexes ? 1 : 0
-  project   = var.project_id
-  database  = var.create_firestore_database ? google_firestore_database.database[0].name : var.database_name
+  count      = var.create_sample_indexes ? 1 : 0
+  project    = var.project_id
+  database   = var.create_firestore_database ? google_firestore_database.database[0].name : var.database_name
   collection = "orders"
 
   fields {
@@ -61,8 +65,21 @@ resource "google_firestore_index" "order_timestamp_index" {
   }
 }
 
-## Note: Firestore security rules cannot be managed directly by Terraform.
-## Copy and apply rules manually using gcloud OR automate via CI/CD.
+# Note: Dependencies handled by resource ordering — database must exist before indexes
 
-# Example rules reference (firestore.rules)
-# gcloud firestore databases update --location=us-central1 --rules=file:firestore.rules
+# Note: Firestore security rules are not directly supported by Terraform
+# They must be deployed manually using:
+#   Firebase console: https://console.firebase.google.com/
+#   Firebase CLI: firebase deploy --only firestore:rules
+#   Google Cloud Console: https://console.cloud.google.com/firestore/rules
+
+# For automated deployment, consider using the Firebase CLI in your CI/CD pipeline
+# Example rules file (firestore.rules):
+# rules_version = '2';
+# service cloud.firestore {
+#   match /databases/{database}/documents {
+#     match /{document=**} {
+#       allow read, write: if request.auth != null;
+#     }
+#   }
+# }
