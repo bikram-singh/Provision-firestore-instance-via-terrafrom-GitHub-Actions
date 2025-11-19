@@ -84,7 +84,7 @@ jobs:
           echo "Working directory: $(pwd)"
           echo "Environment: ${{ github.event.inputs.environment }}"
           echo "Backend config file: environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.backend"
-          ls -la environments/${{ github.event.inputs.environment }}/
+          ls -la environments/${{ github.event.inputs.environment }}/{{ github.event.inputs.environment }}.backend
           cat environments/${{ github.event.inputs.environment }}/{{ github.event.inputs.environment }}.backend
 
       - name: Terraform Init
