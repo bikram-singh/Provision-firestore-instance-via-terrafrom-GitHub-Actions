@@ -35,10 +35,8 @@ This project demonstrates how to:
 
 ## Architecture
 
-```
-<img width="1024" height="1536" alt="Architecture diagram" src="https://github.com/user-attachments/assets/a63e2db7-84e8-4c07-9a48-3b3607a8eff5" />
+![Uploading Architecture diagram.png…]()
 
-```
 
 ## Prerequisites
 
