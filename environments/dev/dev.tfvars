@@ -7,7 +7,7 @@ project_name = "myproject-non-prod"
 environment  = "dev"
 
 # App Engine (if required for Firestore)
-app_engine_location = "us-central1"
+app_engine_location = "us-central"
 
 # Firestore Database Configuration
 database_name                 = "firestore-dev"
