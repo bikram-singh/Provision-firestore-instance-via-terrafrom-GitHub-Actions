@@ -98,6 +98,9 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      - name: Terraform Format Fix
+        run: terraform fmt -recursive  
+
       - name: Terraform Format Check
         run: terraform fmt -check
 
