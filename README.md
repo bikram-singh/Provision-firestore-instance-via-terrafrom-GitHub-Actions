@@ -36,40 +36,8 @@ This project demonstrates how to:
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       GitHub Actions                         │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │  Workflow: firestore.yaml                          │    │
-│  │  - Checkout code                                   │    │
-│  │  - Authenticate via Workload Identity              │    │
-│  │  - Terraform Init/Plan/Apply                       │    │
-│  └────────────────┬───────────────────────────────────┘    │
-└───────────────────┼──────────────────────────────────────────┘
-                    │
-                    │ OIDC Token
-                    ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Workload Identity Pool                          │
-│  projects/166457981312/locations/global/                    │
-│  workloadIdentityPools/github-actions-pool                  │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     │ Impersonate
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Service Account                                 │
-│  github-actions-deploy@myproject-non-prod.iam               │
-│  Roles: Firestore Admin, Storage Admin, etc.               │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     │ Manage Resources
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Google Cloud Resources                          │
-│  - Firestore Databases                                      │
-│  - GCS Buckets (Terraform State)                           │
-│  - Security Rules                                           │
-└─────────────────────────────────────────────────────────────┘
+<img width="1024" height="1536" alt="Architecture diagram" src="https://github.com/user-attachments/assets/a63e2db7-84e8-4c07-9a48-3b3607a8eff5" />
+
 ```
 
 ## Prerequisites
