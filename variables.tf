@@ -84,15 +84,37 @@ variable "concurrency_mode" {
   }
 }
 
-variable "point_in_time_recovery" {
+#############################################
+# *** FIX #1 — ADD THIS MISSING VARIABLE ***
+#############################################
+
+variable "app_engine_integration_mode" {
+  description = "App Engine integration mode for Firestore"
+  type        = string
+  default     = "DISABLED"
+  validation {
+    condition = contains(["DISABLED", "ENABLED"], var.app_engine_integration_mode)
+    error_message = "app_engine_integration_mode must be either DISABLED or ENABLED."
+  }
+}
+
+#############################################
+# *** FIX #2 — RENAME THIS VARIABLE ***
+#############################################
+
+variable "point_in_time_recovery_enablement" {
   description = "Point in time recovery enablement"
   type        = string
   default     = "POINT_IN_TIME_RECOVERY_DISABLED"
   validation {
-    condition = contains(["POINT_IN_TIME_RECOVERY_ENABLED", "POINT_IN_TIME_RECOVERY_DISABLED"], var.point_in_time_recovery)
+    condition = contains(["POINT_IN_TIME_RECOVERY_ENABLED", "POINT_IN_TIME_RECOVERY_DISABLED"], var.point_in_time_recovery_enablement)
     error_message = "Point-in-time recovery enablement must be valid."
   }
 }
+
+#############################################
+# Firestore delete protection
+#############################################
 
 variable "delete_protection_state" {
   description = "The delete protection state for the database"
