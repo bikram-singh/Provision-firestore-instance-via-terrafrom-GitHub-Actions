@@ -187,19 +187,6 @@ gcloud iam service-accounts add-iam-policy-binding \
   --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github-actions-pool/attribute.repository/bikram-singh/Provision-firestore-instance-via-terraform-GitHub-Actions"
 ```
 
-**Screenshot Reference:**
-The service account binding was successfully configured as shown below:
-
-```
-Updated IAM policy for serviceAccount [github-actions-deploy@myproject-non-prod.iam.gserviceaccount.com].
-bindings:
-- members:
-  - principalSet://iam.googleapis.com/projects/166457981312/locations/global/workloadIdentityPools/github-actions-pool/attribute.repository/bikram-singh/Provision-firestore-instance-via-terraform-GitHub-Actions
-  role: roles/iam.workloadIdentityUser
-etag: BwZD8Yb419w=
-version: 1
-```
-
 ### 4. GitHub Secrets Configuration
 
 Add the following secrets to your GitHub repository (Settings → Secrets and variables → Actions):
@@ -307,29 +294,222 @@ The Terraform configuration provisions the following resources:
 The workflow (`firestore.yaml`) performs the following steps:
 
 ```yaml
-name: 'Terraform Firestore Deployment'
+name: 'Firestore Infrastructure Deployment'
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  # Automatic triggers commented out for manual control
+  # push:
+  #   branches:
+  #     - main
+  #     - develop
+  #   paths:
+  #     - '**/*.tf'
+  #     - '**/*.tfvars'
+  #     - 'environments/**'
+  #     - '.github/workflows/firestore.yaml'
+  # pull_request:
+  #   branches:
+  #     - main
+  #     - develop
+  #   paths:
+  #     - '**/*.tf'
+  #     - '**/*.tfvars'
+  #     - 'environments/**'
+  #     - '.github/workflows/firestore.yaml'
+  
   workflow_dispatch:
+   inputs:
+    environment:
+      description: 'Environment to deploy (dev, stage, prod)'
+      required: true
+      default: 'dev'
+      type: choice
+      options:
+        - dev
+        - stage
+        - prod
+    action:
+      description: 'Terraform action to perform'
+      required: true
+      default: 'plan'
+      type: choice
+      options:
+        - plan
+        - apply
+        - destroy
+
+env:
+  PROJECT_ID: myproject-non-prod
+  TF_VERSION: '1.9.0'
+  # Using Workload Identity Fedreration Instead of Service Account keys
+  WORKLOAD_IDENTITY_PROVIDER: 'projects/166457981312/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions'
+  SERVICE_ACCOUNT: 'github-actions-deploy@myproject-non-prod.iam.gserviceaccount.com'
 
 jobs:
-  terraform:
+  terraform-plan:
+    name: 'Terraform Plan'
     runs-on: ubuntu-latest
+    # Only manual workflow dispatch with plan action
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'plan'
+
     permissions:
       contents: read
-      id-token: write
-    
+      id-token: write # Required for Workload Identity Federation
+
     steps:
-      - name: Checkout code
-      - name: Authenticate to Google Cloud
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Debug Environment
+        run: |
+          echo "Terraform version: ${{ env.TF_VERSION }}"
+          echo "Working directory: $PWD"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Backend config file: environments/${{ github.event.inputs.environment }}/dev.backend"
+          echo "TFVARS file: environments/${{ github.event.inputs.environment }}/dev.tfvars"
+
+          ls -al environments/${{ github.event.inputs.environment }}
+
+          cat environments/${{ github.event.inputs.environment }}/dev.backend
+          cat environments/${{ github.event.inputs.environment }}/dev.tfvars   
+
       - name: Terraform Init
+        run: |
+          terraform init -reconfigure -backend-config=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.backend
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Format Fix
+        run: terraform fmt -recursive  
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+
       - name: Terraform Plan
-      - name: Terraform Apply (on push to main)
+        run: |
+          terraform plan -var-file=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.tfvars  -no-color
+
+  terraform-apply:
+    name: 'Terraform Apply'
+    runs-on: ubuntu-latest
+    # Only manual workflow dispatch with apply action
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply'
+
+    permissions:
+      contents: read
+      id-token: write # Required for Workload Identity Federation
+
+    environment:
+      name: ${{ github.event.inputs.environment }}
+      url: https://console.cloud.google.com/firestore
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Enable Required APIs
+        run: |
+          echo "Enabling required Google Cloud APIs..."
+          gcloud services enable firestore.googleapis.com --project=${{ env.PROJECT_ID }} || echo "Firestore API already enabled or insufficient permissions"
+          gcloud services enable appengine.googleapis.com --project=${{ env.PROJECT_ID }} || echo "App Engine API already enabled or insufficient permissions"
+
+      - name: Create App Engine Application (if needed)
+        run: |
+          echo "Checking if App Engine application exists..."
+          if gcloud app describe --project=${{ env.PROJECT_ID }} &>/dev/null; then
+            echo "App Engine application already exists"
+          else
+            echo "Creating App Engine application..."
+            gcloud app create --region=us-central --project=${{ env.PROJECT_ID }} || echo "Failed to create App Engine app or insufficient permissions"
+          fi
+
+      - name: Create Firestore Database (if needed)
+        run: |
+          echo "Checking if Firestore database exists..."
+          if gcloud firestore databases describe ${{ github.event.inputs.environment == 'dev' && 'firestore-dev' || github.event.inputs.environment == 'stage' && 'firestore-stage' || 'firestore-prod' }}  --project=${{ env.PROJECT_ID }} &>/dev/null; then
+            echo "Firestore database already exists"
+          else
+            echo "Creating Firestore database..."
+            gcloud firestore databases create  --database=${{ github.event.inputs.environment == 'dev' && 'firestore-dev' || github.event.inputs.environment == 'stage' && 'firestore-stage' || 'firestore-prod' }}  --location=us-central1  --type=firestore-native  --project=${{ env.PROJECT_ID }} || echo "Failed to create Firestore database or insufficient permissions"
+          fi
+
+      - name: Terraform Init
+        run: |
+          terraform init -reconfigure -backend-config=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.backend
+
+      - name: Terraform Apply
+        run: |
+          terraform apply -var-file=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.tfvars  -auto-approve  -no-color
+
+  terraform-destroy:
+    name: 'Terraform Destroy'
+    runs-on: uhg-runner
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+
+    permissions:
+      contents: read
+      id-token: write # Required for Workload Identity Federation
+
+    environment:
+      name: ${{ github.event.inputs.environment }}-destroy
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Terraform Init
+        run: |
+          terraform init -reconfigure -backend-config=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.backend
+
+      - name: Terraform Destroy Plan
+        run: |
+          terraform plan  -var-file=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.tfvars  -destroy -out=destroy-plan-${{ github.event.inputs.environment }} -no-color
+
+      - name: Terraform Destroy
+        run: terraform apply destroy-plan-${{ github.event.inputs.environment }}
 ```
 
 ### Workflow Features:
@@ -358,10 +538,31 @@ The `firestore.rules` file defines who can read/write to your Firestore database
 
 ```javascript
 rules_version = '2';
+
 service cloud.firestore {
+  // Restrict access to authenticated users only
   match /databases/{database}/documents {
+
+    // Root-level match: secure rules for production
     match /{document=**} {
       allow read, write: if request.auth != null;
+    }
+
+    // Example: Allow public read access to a public collection
+    match /public/{document} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Example: user-specific data access
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Example: collection with specific rules
+    match /orders/{orderId} {
+      allow read, write: if request.auth != null &&
+                         request.auth.uid == resource.data.user_id;
     }
   }
 }
