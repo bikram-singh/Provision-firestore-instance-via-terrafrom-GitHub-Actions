@@ -78,7 +78,6 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-
       - name: Debug Environment
         run: |
           echo "Terraform version: ${{ env.TF_VERSION }}"
@@ -94,7 +93,7 @@ jobs:
 
       - name: Terraform Init
         run: |
-          terraform init -reconfigure -backend-config=environments/${{ github.event.inputs.environment }}/{{ github.event.inputs.environment }}.backend
+          terraform init -reconfigure -backend-config=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.backend
 
       - name: Terraform Validate
         run: terraform validate
@@ -104,7 +103,7 @@ jobs:
 
       - name: Terraform Plan
         run: |
-          terraform plan -var-file=environments/${{ github.event.inputs.environment }}/{{ github.event.inputs.environment }}.tfvars  -no-color
+          terraform plan -var-file=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.tfvars  -no-color
 
   terraform-apply:
     name: 'Terraform Apply'
@@ -166,11 +165,11 @@ jobs:
 
       - name: Terraform Init
         run: |
-          terraform init -reconfigure -backend-config=environments/${{ github.event.inputs.environment }}/{{ github.event.inputs.environment }}.backend
+          terraform init -reconfigure -backend-config=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.backend
 
       - name: Terraform Apply
         run: |
-          terraform apply -var-file=environments/${{ github.event.inputs.environment }}/{{ github.event.inputs.environment }}.tfvars  -auto-approve  -no-color
+          terraform apply -var-file=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.tfvars  -auto-approve  -no-color
 
   terraform-destroy:
     name: 'Terraform Destroy'
@@ -204,11 +203,11 @@ jobs:
 
       - name: Terraform Init
         run: |
-          terraform init -reconfigure -backend-config=environments/${{ github.event.inputs.environment }}/{{ github.event.inputs.environment }}.backend
+          terraform init -reconfigure -backend-config=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.backend
 
       - name: Terraform Destroy Plan
         run: |
-          terraform plan  -var-file=environments/${{ github.event.inputs.environment }}/{{ github.event.inputs.environment }}.tfvars  -destroy -out=destroy-plan-${{ github.event.inputs.environment }} -no-color
+          terraform plan  -var-file=environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.environment }}.tfvars  -destroy -out=destroy-plan-${{ github.event.inputs.environment }} -no-color
 
       - name: Terraform Destroy
         run: terraform apply destroy-plan-${{ github.event.inputs.environment }}
